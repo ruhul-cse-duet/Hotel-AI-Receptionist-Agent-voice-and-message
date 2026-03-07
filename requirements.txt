@@ -1,0 +1,49 @@
+# ════════════════════════════════════════════
+# Hotel AI Receptionist — Python Dependencies
+# ════════════════════════════════════════════
+
+# ── Core Framework ─────────────────────────
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+python-multipart==0.0.12
+pydantic==2.9.2
+pydantic-settings==2.6.0
+python-dotenv==1.0.1
+
+# ── Database ───────────────────────────────
+motor==3.6.0               # Async MongoDB driver
+pymongo==4.9.2             # MongoDB sync (for indexes)
+
+# ── LLM Providers ──────────────────────────
+openai==1.54.0             # OpenAI + LM Studio (compatible endpoint)
+google-generativeai==0.8.3 # Gemini
+
+# ── STT / Speech-to-Text ───────────────────
+# openai already handles Whisper API
+deepgram-sdk==3.7.7        # Deepgram low-latency STT
+faster-whisper==1.1.0      # Local Whisper (offline mode)
+
+# ── TTS / Text-to-Speech ───────────────────
+elevenlabs==1.9.0          # ElevenLabs natural voice TTS
+gTTS==2.5.3                # Free local TTS fallback
+
+# ── Twilio ─────────────────────────────────
+twilio==9.3.7              # Voice calls + WhatsApp
+
+# ── HTTP Client ────────────────────────────
+httpx==0.27.2              # Async HTTP (for media download)
+aiofiles==24.1.0
+
+# ── Audio Processing ───────────────────────
+# ffmpeg must be installed separately (see README)
+# sudo apt install ffmpeg  (Ubuntu/Debian)
+# brew install ffmpeg      (macOS)
+
+# ── Utilities ──────────────────────────────
+python-dateutil==2.9.0
+pytz==2024.2
+
+# ── Testing / Dev ───────────────────────────────
+pytest==7.4.0
+pytest-asyncio==0.22.0
+anyio==3.7.1
