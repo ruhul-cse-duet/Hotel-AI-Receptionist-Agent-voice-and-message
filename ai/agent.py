@@ -139,6 +139,7 @@ class HotelAgent:
         system = get_system_prompt(
             channel=self.channel.value,
             hotel_name=settings.HOTEL_NAME,
+            receptionist_name=settings.RECEPTIONIST_NAME,
             hotel_address=settings.HOTEL_ADDRESS,
             checkin_time=settings.HOTEL_CHECKIN_TIME,
             checkout_time=settings.HOTEL_CHECKOUT_TIME,

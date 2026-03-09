@@ -163,7 +163,23 @@ class MockAsyncCollection:
                         if key not in doc:
                             doc[key] = []
                         if isinstance(doc[key], list):
-                            doc[key].append(value)
+                            # Support MongoDB's $each syntax used in code/tests.
+                            if isinstance(value, dict) and "$each" in value and isinstance(value["$each"], list):
+                                doc[key].extend(value["$each"])
+                            else:
+                                doc[key].append(value)
+                if "$addToSet" in update_doc:
+                    for key, value in update_doc["$addToSet"].items():
+                        if key not in doc:
+                            doc[key] = []
+                        if isinstance(doc[key], list):
+                            if isinstance(value, dict) and "$each" in value and isinstance(value["$each"], list):
+                                for item in value["$each"]:
+                                    if item not in doc[key]:
+                                        doc[key].append(item)
+                            else:
+                                if value not in doc[key]:
+                                    doc[key].append(value)
                 return MagicMock(modified_count=1)
         
         if upsert:

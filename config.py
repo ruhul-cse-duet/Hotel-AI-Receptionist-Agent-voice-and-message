@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     APP_ENV: str = Field(default="development")  # development | production
     DEBUG: bool = Field(default=True)
     HOST: str = "127.0.0.1"
-    PORT: int = 8000
+    PORT: int = 8002
     WEBHOOK_BASE_URL: str = Field(default="https://uncatastrophically-unrivalled-coreen.ngrok-free.dev")  # public URL for Twilio webhooks
     WEBHOOK_TIMEOUT_SECONDS: int = Field(default=30)
 
@@ -76,9 +76,11 @@ class Settings(BaseSettings):
     TWILIO_PHONE_NUMBER: str = Field(default="")       # +1234567890
     TWILIO_WHATSAPP_NUMBER: str = Field(default="")    # whatsapp:+14155238886
     VERIFY_TWILIO_SIGNATURE: bool = Field(default=False)
+    WHATSAPP_MAX_PARTS: int = Field(default=1)  # cap replies to reduce message count/limits
 
     # ── Hotel Info ─────────────────────────────────────────
     HOTEL_NAME: str = "Grand Azure Hotel"
+    RECEPTIONIST_NAME: str = "Aria"
     HOTEL_PHONE: str = "+8801234567890"
     HOTEL_ADDRESS: str = "123 Main Street, Dhaka, Bangladesh"
     HOTEL_CHECKIN_TIME: str = "14:00"

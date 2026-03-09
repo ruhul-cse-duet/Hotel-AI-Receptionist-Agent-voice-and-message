@@ -80,7 +80,10 @@ async def incoming_call(request: Request):
     response = VoiceResponse()
 
     # Play greeting while WebSocket initializes
-    greeting = GREETING_VOICE.format(hotel_name=settings.HOTEL_NAME)
+    greeting = GREETING_VOICE.format(
+        hotel_name=settings.HOTEL_NAME,
+        receptionist_name=settings.RECEPTIONIST_NAME,
+    )
 
     start = Start()
     start.stream(

@@ -1,5 +1,5 @@
 """
-Hotel AI Receptionist — FastAPI Application
+Hotel AI Receptionist - FastAPI Application
 Entry point: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 """
 
@@ -11,18 +11,49 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-# Setup logging first
+from config import settings
+from database.mongodb import connect_db, disconnect_db
+
+
+def _configure_console_encoding() -> None:
+    """Ensure console streams can safely print Unicode logs on Windows."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            reconfigure(encoding="utf-8", errors="replace")
+
+
+_configure_console_encoding()
+
+
+def _get_log_level() -> int:
+    configured = (settings.LOG_LEVEL or "INFO").upper()
+    return getattr(logging, configured, logging.INFO)
+
+
+def _quiet_noisy_loggers() -> None:
+    noisy = [
+        "pymongo",
+        "pymongo.connection",
+        "pymongo.topology",
+        "pymongo.serverSelection",
+        "pymongo.command",
+    ]
+    for name in noisy:
+        logging.getLogger(name).setLevel(logging.WARNING)
+
+
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=_get_log_level(),
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler("hotel_ai.log"),
-    ]
+        logging.FileHandler("hotel_ai.log", encoding="utf-8"),
+    ],
+    force=True,
 )
 logger = logging.getLogger(__name__)
-
-from database.mongodb import connect_db, disconnect_db
+_quiet_noisy_loggers()
 
 # Import routers with error handling
 try:
@@ -48,29 +79,10 @@ except Exception as e:
     rooms_router = None
     admin_router = None
 
-from config import settings
-
-# ─────────────────────────────────────────────
-# Logging
-# ─────────────────────────────────────────────
-logging.basicConfig(
-    level=logging.DEBUG if settings.DEBUG else logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler("hotel_ai.log"),
-    ]
-)
-
-
-# ─────────────────────────────────────────────
-# App Lifecycle
-# ─────────────────────────────────────────────
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    logger.info(f"🏨 {settings.HOTEL_NAME} — AI Receptionist Starting...")
+    logger.info(f"{settings.HOTEL_NAME} - AI Receptionist starting")
     logger.info(f"   LLM Provider : {settings.LLM_PROVIDER}")
     logger.info(f"   STT Provider : {settings.STT_PROVIDER}")
     logger.info(f"   TTS Provider : {settings.TTS_PROVIDER}")
@@ -78,33 +90,27 @@ async def lifespan(app: FastAPI):
 
     await connect_db()
 
-    # Warm up LLM provider
     from ai.llm_provider import get_llm_provider
     get_llm_provider()
 
-    logger.info(f"✅ {settings.HOTEL_NAME} AI Receptionist is LIVE on port {settings.PORT}")
+    logger.info(f"{settings.HOTEL_NAME} AI Receptionist is LIVE on port {settings.PORT}")
     yield
 
-    # Shutdown
     await disconnect_db()
-    logger.info("👋 Hotel AI Receptionist stopped")
+    logger.info("Hotel AI Receptionist stopped")
 
-
-# ─────────────────────────────────────────────
-# FastAPI App
-# ─────────────────────────────────────────────
 
 app = FastAPI(
-    title=f"{settings.HOTEL_NAME} — AI Receptionist",
+    title=f"{settings.HOTEL_NAME} - AI Receptionist",
     description="""
-    🏨 **Agentic AI Hotel Receptionist System**
-    
-    - **Voice Calls**: Real-time AI phone calls via Twilio + STT + TTS
-    - **WhatsApp**: AI-powered messaging with rich confirmations  
-    - **Booking Engine**: Full room availability & booking management
-    - **MongoDB**: Persistent guest data and conversation history
-    
-    **LLM Providers**: OpenAI GPT-4o (prod) | Gemini 1.5 Pro (prod) | LM Studio (local dev)
+    Agentic AI Hotel Receptionist System
+
+    - Voice Calls: Real-time AI phone calls via Twilio + STT + TTS
+    - WhatsApp: AI-powered messaging with rich confirmations
+    - Booking Engine: Full room availability and booking management
+    - MongoDB: Persistent guest data and conversation history
+
+    LLM Providers: OpenAI GPT-4o (prod) | Gemini 1.5 Pro (prod) | LM Studio (local dev)
     """,
     version="1.0.0",
     lifespan=lifespan,
@@ -112,7 +118,6 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -121,10 +126,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-# ─────────────────────────────────────────────
-# Global Error Handler
-# ─────────────────────────────────────────────
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -135,39 +136,35 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-# ─────────────────────────────────────────────
-# Routes
-# ─────────────────────────────────────────────
-
 if voice_router:
     app.include_router(voice_router)
-    logger.info("📞 Voice router registered")
+    logger.info("Voice router registered")
 else:
-    logger.warning("⚠️ Voice router NOT registered")
+    logger.warning("Voice router NOT registered")
 
 if whatsapp_router:
     app.include_router(whatsapp_router)
-    logger.info("💬 WhatsApp router registered")
+    logger.info("WhatsApp router registered")
 else:
-    logger.warning("⚠️ WhatsApp router NOT registered")
+    logger.warning("WhatsApp router NOT registered")
 
 if bookings_router:
     app.include_router(bookings_router)
-    logger.info("📋 Bookings router registered")
+    logger.info("Bookings router registered")
 else:
-    logger.warning("⚠️ Bookings router NOT registered")
+    logger.warning("Bookings router NOT registered")
 
 if rooms_router:
     app.include_router(rooms_router)
-    logger.info("🏨 Rooms router registered")
+    logger.info("Rooms router registered")
 else:
-    logger.warning("⚠️ Rooms router NOT registered")
+    logger.warning("Rooms router NOT registered")
 
 if admin_router:
     app.include_router(admin_router)
-    logger.info("👨‍💼 Admin router registered")
+    logger.info("Admin router registered")
 else:
-    logger.warning("⚠️ Admin router NOT registered")
+    logger.warning("Admin router NOT registered")
 
 
 @app.get("/", tags=["Health"])
@@ -185,6 +182,7 @@ async def root():
 @app.get("/health", tags=["Health"])
 async def health():
     from database.mongodb import get_db
+
     try:
         db = get_db()
         await db.command("ping")
@@ -199,18 +197,15 @@ async def health():
     }
 
 
-# ─────────────────────────────────────────────
-# Dev Entry Point
-# ─────────────────────────────────────────────
-
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "main:app",
         host=settings.HOST,
         port=settings.PORT,
         reload=settings.DEBUG,
-        log_level="debug" if settings.DEBUG else "info",
+        log_level="info",
         ws_ping_interval=30,
         ws_ping_timeout=10,
     )
