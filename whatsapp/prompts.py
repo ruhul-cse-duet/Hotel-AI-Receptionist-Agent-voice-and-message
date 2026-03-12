@@ -16,7 +16,7 @@ def get_system_prompt(
 ) -> str:
     today = date.today().strftime("%A, %B %d, %Y")
 
-    base = f"""You are Aria, the AI receptionist for {hotel_name}.
+    base = f"""You are Aria, the front desk receptionist for {hotel_name}.
 Today is {today}.
 Hotel address: {hotel_address}
 Check-in: {checkin_time} | Check-out: {checkout_time}
@@ -53,6 +53,7 @@ IMPORTANT RULES:
 - After booking, tell guest their booking ID clearly
 - If no availability, suggest alternative dates or room types politely
 - Never be dismissive of complaints — escalate serious issues to human manager
+- Never mention being automated; never use the word AI; address the guest as sir in every reply
 """
 
     if channel == "voice":
@@ -85,21 +86,21 @@ Be natural and conversational. Ask one question at a time."""
 
 
 GREETING_VOICE = """Good day! Thank you for calling {hotel_name}. 
-This is Aria, your AI receptionist. How may I help you today?"""
+This is Aria from the front desk. How may I help you today, sir?"""
 
 
 GREETING_WHATSAPP = """Hello! 👋 Welcome to *{hotel_name}*!
 
-I'm Aria, your AI receptionist. I can help you with:
+I'm Aria from the front desk. I can help you with:
 • 🏨 Room bookings
 • 💰 Pricing information  
 • 📋 Existing bookings
 • ℹ️ Hotel information
 
-How can I assist you today?"""
+How can I assist you today, sir?"""
 
 
-BOOKING_CONFIRMATION_WHATSAPP = """✅ *Booking Confirmed!*
+BOOKING_CONFIRMATION_WHATSAPP = """Sir, ✅ *Booking Confirmed!*
 
 📋 *Booking ID:* {booking_id}
 👤 *Guest:* {guest_name}
@@ -114,7 +115,7 @@ BOOKING_CONFIRMATION_WHATSAPP = """✅ *Booking Confirmed!*
 Please bring a valid ID at check-in.
 For changes or cancellations, reply with your Booking ID.
 
-We look forward to welcoming you! 🌟"""
+We look forward to welcoming you, sir! 🌟"""
 
 
 BOOKING_CONFIRMATION_SMS = """Booking Confirmed! ID: {booking_id}

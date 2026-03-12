@@ -20,6 +20,11 @@ from twilio.twiml.messaging_response import MessagingResponse
 from ai.agent import get_whatsapp_agent
 from ai.prompts import GREETING_WHATSAPP, BOOKING_CONFIRMATION_WHATSAPP
 from database.mongodb import get_db
+from database.tenancy import (
+    resolve_hotel_by_twilio_number,
+    set_current_tenant,
+    get_hotel_profile,
+)
 from database.models import Conversation, ConversationChannel, ConversationContext
 from config import settings
 
@@ -92,10 +97,19 @@ async def incoming_whatsapp(
     MediaUrl0: Optional[str] = Form(default=None),
     MediaContentType0: Optional[str] = Form(default=None),
     ProfileName: Optional[str] = Form(default=None),
+    To: Optional[str] = Form(default=None),
 ):
     """
     Twilio calls this webhook on every incoming WhatsApp message.
     """
+    to_number = To or ""
+
+    hotel = await resolve_hotel_by_twilio_number(to_number, channel="whatsapp")
+    if not hotel or not hotel.get("is_active", True):
+        logger.error("No hotel found for WhatsApp number: %s", to_number)
+        return Response(content="", status_code=204)
+
+    set_current_tenant(hotel)
     if _seen_inbound_recently(MessageSid):
         return Response(content="", status_code=204)
 
@@ -114,6 +128,7 @@ async def incoming_whatsapp(
                 media_url0=MediaUrl0,
                 media_type0=MediaContentType0,
                 profile_name=ProfileName,
+                hotel=hotel,
             )
         )
     )
@@ -127,24 +142,28 @@ async def _handle_incoming_whatsapp(
     media_url0: Optional[str],
     media_type0: Optional[str],
     profile_name: Optional[str],
+    hotel: Optional[dict],
 ) -> None:
+    if hotel:
+        set_current_tenant(hotel)
     db = get_db()
     agent = get_whatsapp_agent()
 
     # Handle voice note (audio media)
     if int(num_media or "0") > 0 and media_type0 and "audio" in media_type0:
         if not media_url0:
-            await _send_whatsapp(phone, "Sorry, I couldn't access that voice note. Please type your message.")
+            await _send_whatsapp(phone, "Sorry, I couldn't access that voice note. Please type your message, sir.")
             return
-        message_body = await _transcribe_voice_note(media_url0)
+        message_body = await _transcribe_voice_note(media_url0, media_type0)
         if not message_body:
-            await _send_whatsapp(phone, "Sorry, I couldn't understand that voice note. Please type your message.")
+            await _send_whatsapp(phone, "Sorry, I couldn't understand that voice note. Please type your message, sir.")
             return
 
     if not (message_body or "").strip():
+        profile = get_hotel_profile()
         await _send_whatsapp(
             phone,
-            f"Hello! This is {settings.RECEPTIONIST_NAME} at {settings.HOTEL_NAME}. How can I help you today?",
+            f"Hello! This is {profile['receptionist_name']} at {profile['name']}. How can I help you today, sir?",
         )
         return
 
@@ -154,9 +173,10 @@ async def _handle_incoming_whatsapp(
 
     # Handle special commands
     if message_body.lower() in ["hi", "hello", "hey", "start", "menu"]:
+        profile = get_hotel_profile()
         greeting = GREETING_WHATSAPP.format(
-            hotel_name=settings.HOTEL_NAME,
-            receptionist_name=settings.RECEPTIONIST_NAME,
+            hotel_name=profile["name"],
+            receptionist_name=profile["receptionist_name"],
         )
         sent = await _send_whatsapp(phone, greeting)
 
@@ -201,7 +221,7 @@ async def _handle_incoming_whatsapp(
         logger.error("WhatsApp processing error: %s", e, exc_info=True)
         await _send_whatsapp(
             phone,
-            "I'm sorry, I'm experiencing a technical issue. Please try again or call us directly.",
+            "I'm sorry, I'm experiencing a technical issue. Please try again or call us directly, sir.",
         )
 
 
@@ -224,12 +244,12 @@ async def send_check_in_reminder(phone: str, booking_data: dict) -> bool:
     msg = (
         f"🌟 *Check-in Reminder!*\n\n"
         f"Dear {booking_data['guest_name']},\n\n"
-        f"This is a friendly reminder that your stay at *{settings.HOTEL_NAME}* "
-        f"begins *tomorrow, {booking_data['check_in_date']}* at {settings.HOTEL_CHECKIN_TIME}.\n\n"
+        f"This is a friendly reminder that your stay at *{get_hotel_profile()['name']}* "
+        f"begins *tomorrow, {booking_data['check_in_date']}* at {get_hotel_profile()['checkin_time']}.\n\n"
         f"📋 Booking ID: *{booking_data['booking_id']}*\n"
         f"🏨 Room: {booking_data['room_type'].title()}\n\n"
-        f"Please bring a valid government ID for check-in.\n"
-        f"We look forward to welcoming you! 🎉"
+        f"Please bring a valid government ID for check-in, sir.\n"
+        f"We look forward to welcoming you, sir! 🎉"
     )
     return await _send_whatsapp(phone, msg)
 
@@ -238,10 +258,10 @@ async def send_checkout_reminder(phone: str, booking_data: dict) -> bool:
     """Send check-out reminder on departure day"""
     msg = (
         f"☀️ *Good Morning, {booking_data['guest_name']}!*\n\n"
-        f"This is a reminder that check-out time is *{settings.HOTEL_CHECKOUT_TIME}* today.\n\n"
-        f"For late check-out requests, please contact the front desk.\n"
-        f"We hope you enjoyed your stay at *{settings.HOTEL_NAME}*! 🌟\n\n"
-        f"Please rate your experience by replying with a number 1-5. ⭐"
+        f"This is a reminder that check-out time is *{get_hotel_profile()['checkout_time']}* today.\n\n"
+        f"For late check-out requests, please contact the front desk, sir.\n"
+        f"We hope you enjoyed your stay at *{get_hotel_profile()['name']}*, sir! 🌟\n\n"
+        f"Please rate your experience by replying with a number 1-5, sir. ⭐"
     )
     return await _send_whatsapp(phone, msg)
 
@@ -285,7 +305,12 @@ async def _get_or_create_whatsapp_session(db, phone: str, name: Optional[str]) -
 
 async def _send_whatsapp(phone: str, message: str) -> bool:
     """Send WhatsApp message via Twilio"""
-    if not settings.TWILIO_ACCOUNT_SID or not settings.TWILIO_AUTH_TOKEN or not settings.TWILIO_WHATSAPP_NUMBER:
+    profile = get_hotel_profile()
+    account_sid = profile["twilio_account_sid"] or settings.TWILIO_ACCOUNT_SID
+    auth_token = profile["twilio_auth_token"] or settings.TWILIO_AUTH_TOKEN
+    wa_number = profile["twilio_whatsapp_number"] or settings.TWILIO_WHATSAPP_NUMBER
+
+    if not account_sid or not auth_token or not wa_number:
         logger.warning("WhatsApp send skipped: Twilio WhatsApp settings missing")
         return False
 
@@ -296,11 +321,11 @@ async def _send_whatsapp(phone: str, message: str) -> bool:
     try:
         # Format phone for Twilio WhatsApp
         to = f"whatsapp:{phone}" if not phone.startswith("whatsapp:") else phone
-        from_wa = settings.TWILIO_WHATSAPP_NUMBER
+        from_wa = wa_number
         if not from_wa.startswith("whatsapp:"):
             from_wa = f"whatsapp:{from_wa}"
 
-        client = TwilioClient(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+        client = TwilioClient(account_sid, auth_token)
         parts = _chunk_whatsapp_message(message, WHATSAPP_SAFE_CHUNK_SIZE)
 
         max_parts = max(1, int(getattr(settings, "WHATSAPP_MAX_PARTS", 1)))
@@ -388,6 +413,7 @@ def _chunk_whatsapp_message(message: str, chunk_size: int) -> list[str]:
 async def _send_booking_confirmation_whatsapp(phone: str, booking: dict) -> bool:
     """Send rich booking confirmation message"""
     children_str = f" + {booking.get('children', 0)} children" if booking.get("children", 0) > 0 else ""
+    profile = get_hotel_profile()
 
     msg = BOOKING_CONFIRMATION_WHATSAPP.format(
         booking_id=booking.get("booking_id", ""),
@@ -396,30 +422,40 @@ async def _send_booking_confirmation_whatsapp(phone: str, booking: dict) -> bool
         room_number=booking.get("room_number", ""),
         check_in_date=booking.get("check_in_date", ""),
         check_out_date=booking.get("check_out_date", ""),
-        checkin_time=settings.HOTEL_CHECKIN_TIME,
-        checkout_time=settings.HOTEL_CHECKOUT_TIME,
+        checkin_time=profile["checkin_time"],
+        checkout_time=profile["checkout_time"],
         adults=booking.get("adults", 1),
         children_str=children_str,
-        currency=booking.get("currency", settings.HOTEL_CURRENCY),
+        currency=booking.get("currency", profile["currency"]),
         total_amount=float(booking.get("total_amount", 0)),
-        hotel_address=settings.HOTEL_ADDRESS,
+        hotel_address=profile["address"],
     )
     return await _send_whatsapp(phone, msg)
 
 
-async def _transcribe_voice_note(media_url: str) -> str:
+async def _transcribe_voice_note(media_url: str, media_type: Optional[str]) -> str:
     """Download and transcribe a WhatsApp voice note"""
     try:
         import httpx
         from voice.stt_tts import get_stt
 
+        profile = get_hotel_profile()
+        account_sid = profile["twilio_account_sid"] or settings.TWILIO_ACCOUNT_SID
+        auth_token = profile["twilio_auth_token"] or settings.TWILIO_AUTH_TOKEN
+
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 media_url,
-                auth=(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN),
+                auth=(account_sid, auth_token),
                 follow_redirects=True,
             )
             audio_bytes = response.content
+            response_media_type = response.headers.get("content-type")
+
+        audio_bytes = await _convert_audio_to_wav(
+            audio_bytes=audio_bytes,
+            media_type=media_type or response_media_type,
+        )
 
         stt = get_stt()
         text = await stt.transcribe(audio_bytes)
@@ -428,3 +464,58 @@ async def _transcribe_voice_note(media_url: str) -> str:
     except Exception as e:
         logger.error(f"Voice note transcription error: {e}")
         return ""
+
+
+def _media_type_to_extension(media_type: Optional[str]) -> Optional[str]:
+    if not media_type:
+        return None
+    base = media_type.split(";")[0].strip().lower()
+    mapping = {
+        "audio/ogg": ".ogg",
+        "audio/opus": ".opus",
+        "audio/mpeg": ".mp3",
+        "audio/mp3": ".mp3",
+        "audio/wav": ".wav",
+        "audio/x-wav": ".wav",
+        "audio/amr": ".amr",
+        "audio/3gpp": ".3gp",
+        "audio/mp4": ".m4a",
+        "audio/aac": ".aac",
+    }
+    return mapping.get(base)
+
+
+async def _convert_audio_to_wav(audio_bytes: bytes, media_type: Optional[str]) -> bytes:
+    ext = _media_type_to_extension(media_type)
+    if not ext or ext in (".wav", ".wave"):
+        return audio_bytes
+
+    import os
+    import tempfile
+    import asyncio
+
+    with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as f_in:
+        f_in.write(audio_bytes)
+        in_path = f_in.name
+
+    out_path = in_path + ".wav"
+    try:
+        process = await asyncio.create_subprocess_exec(
+            "ffmpeg", "-y", "-i", in_path,
+            "-ar", "16000", "-ac", "1",
+            out_path,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        await process.wait()
+
+        if os.path.exists(out_path):
+            with open(out_path, "rb") as f_out:
+                return f_out.read()
+        return audio_bytes
+    except Exception:
+        return audio_bytes
+    finally:
+        for p in (in_path, out_path):
+            if os.path.exists(p):
+                os.unlink(p)

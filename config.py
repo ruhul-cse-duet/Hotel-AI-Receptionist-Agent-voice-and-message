@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "Hotel AI Receptionist"
     APP_ENV: str = Field(default="development")  # development | production
     DEBUG: bool = Field(default=True)
-    HOST: str = "127.0.0.1"
+    HOST: str = "0.0.0.0"
     PORT: int = 8002
     WEBHOOK_BASE_URL: str = Field(default="https://uncatastrophically-unrivalled-coreen.ngrok-free.dev")  # public URL for Twilio webhooks
     WEBHOOK_TIMEOUT_SECONDS: int = Field(default=30)

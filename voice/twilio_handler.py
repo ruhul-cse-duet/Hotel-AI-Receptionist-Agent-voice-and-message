@@ -21,6 +21,12 @@ from ai.agent import get_voice_agent
 from ai.prompts import GREETING_VOICE
 from voice.stt_tts import get_stt, get_tts
 from database.mongodb import get_db
+from database.tenancy import (
+    resolve_hotel_by_twilio_number,
+    resolve_hotel_by_id,
+    set_current_tenant,
+    get_hotel_profile,
+)
 from database.models import CallSession, Conversation, ConversationChannel, ConversationContext
 from config import settings
 
@@ -44,6 +50,17 @@ async def incoming_call(request: Request):
     form = await request.form()
     call_sid = form.get("CallSid", "")
     caller_phone = form.get("From", "unknown")
+    to_number = form.get("To", "")
+
+    hotel = await resolve_hotel_by_twilio_number(to_number, channel="voice")
+    if not hotel or not hotel.get("is_active", True):
+        logger.error("No hotel found for voice number: %s", to_number)
+        response = VoiceResponse()
+        response.say("This number is not configured. Please contact support, sir.")
+        response.hangup()
+        return Response(content=str(response), media_type="application/xml")
+
+    set_current_tenant(hotel)
 
     logger.info(f"📞 Incoming call: {call_sid} from {caller_phone}")
 
@@ -74,22 +91,24 @@ async def incoming_call(request: Request):
         "session_id": session_id,
         "phone": caller_phone,
         "stream_sid": None,
+        "hotel_id": hotel.get("hotel_id"),
     }
 
     # TwiML: Start Media Stream to our WebSocket
     response = VoiceResponse()
 
     # Play greeting while WebSocket initializes
+    profile = get_hotel_profile()
     greeting = GREETING_VOICE.format(
-        hotel_name=settings.HOTEL_NAME,
-        receptionist_name=settings.RECEPTIONIST_NAME,
+        hotel_name=profile["name"],
+        receptionist_name=profile["receptionist_name"],
     )
 
     start = Start()
-    start.stream(
-        url=f"wss://{request.headers.get('host', settings.BASE_URL.replace('https://', ''))}/voice/stream",
-        track="inbound_track",
-    )
+    base_host = request.headers.get("host")
+    if not base_host:
+        base_host = settings.WEBHOOK_BASE_URL.replace("https://", "").replace("http://", "")
+    start.stream(url=f"wss://{base_host}/voice/stream", track="inbound_track")
     response.append(start)
 
     # Initial pause to let WebSocket connect
@@ -118,6 +137,11 @@ async def call_status(request: Request):
     if status in ["completed", "failed", "busy", "no-answer"]:
         session_data = active_sessions.pop(call_sid, None)
         if session_data:
+            hotel_id = session_data.get("hotel_id")
+            if hotel_id:
+                hotel = await resolve_hotel_by_id(hotel_id)
+                if hotel:
+                    set_current_tenant(hotel)
             db = get_db()
             await db.conversations.update_one(
                 {"session_id": session_data["session_id"]},
@@ -177,6 +201,11 @@ async def media_stream(websocket: WebSocket):
                 if session_data:
                     session_data["stream_sid"] = stream_sid
                     session_data["websocket"] = websocket
+                    hotel_id = session_data.get("hotel_id")
+                    if hotel_id:
+                        hotel = await resolve_hotel_by_id(hotel_id)
+                        if hotel:
+                            set_current_tenant(hotel)
                 logger.info(f"🎙 Stream started: {call_sid}")
 
             # ── Media (audio chunk) ───────────────────────
@@ -233,6 +262,13 @@ async def _process_speech_turn(
 ):
     """STT → AI Agent → TTS → stream audio back to caller"""
     try:
+        # Ensure tenant context is set for this background task
+        hotel_id = session_data.get("hotel_id") if session_data else None
+        if hotel_id:
+            hotel = await resolve_hotel_by_id(hotel_id)
+            if hotel:
+                set_current_tenant(hotel)
+
         # 1. Speech to Text
         user_text = await stt.transcribe(speech_bytes, language="en")
         if not user_text or len(user_text.strip()) < 2:
@@ -333,21 +369,25 @@ async def make_outbound_call(
 ) -> dict:
     """AI calls a guest — for booking confirmations, reminders etc."""
     try:
-        twilio_client = TwilioClient(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+        profile = get_hotel_profile()
+        account_sid = profile["twilio_account_sid"] or settings.TWILIO_ACCOUNT_SID
+        auth_token = profile["twilio_auth_token"] or settings.TWILIO_AUTH_TOKEN
+        twilio_client = TwilioClient(account_sid, auth_token)
 
         twiml = VoiceResponse()
         twiml.say(message, voice="Polly.Joanna", language="en-US")
         twiml.pause(length=2)
         twiml.say(
-            f"For assistance, please call us back at {settings.HOTEL_PHONE}. Thank you!",
+            f"For assistance, please call us back at {profile['phone']}, sir. Thank you!",
             voice="Polly.Joanna"
         )
 
+        from_number = profile["twilio_voice_number"] or settings.TWILIO_PHONE_NUMBER
         call = twilio_client.calls.create(
             twiml=str(twiml),
             to=to_phone,
-            from_=settings.TWILIO_PHONE_NUMBER,
-            status_callback=f"{settings.BASE_URL}/voice/status",
+            from_=from_number,
+            status_callback=f"{settings.WEBHOOK_BASE_URL}/voice/status",
         )
         logger.info(f"📞 Outbound call to {to_phone}: {call.sid}")
         return {"success": True, "call_sid": call.sid}

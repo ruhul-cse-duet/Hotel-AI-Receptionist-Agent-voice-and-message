@@ -8,16 +8,18 @@ REST API Routers
 import logging
 from datetime import date, datetime
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Header
 from fastapi.responses import JSONResponse
 
-from database.mongodb import get_db
+from database.mongodb import get_db, get_admin_db
 from database.models import (
     Room, Booking, BookingStatus, RoomType,
-    BookingCreateRequest, AvailabilityRequest
+    BookingCreateRequest, AvailabilityRequest,
+    HotelConfig, HotelCreateRequest, HotelUpdateRequest
 )
 from ai.tools import get_tool_executor
 from config import settings
+from database.tenancy import resolve_hotel_by_id, set_current_tenant, get_hotel_profile
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,100 @@ bookings_router = APIRouter(prefix="/bookings", tags=["Bookings"])
 rooms_router = APIRouter(prefix="/rooms", tags=["Rooms"])
 admin_router = APIRouter(prefix="/admin", tags=["Admin"])
 
+
+async def require_admin_key(x_admin_key: str = Header(default="", alias="X-Admin-Key")):
+    if not settings.ADMIN_SECRET_KEY:
+        raise HTTPException(500, "ADMIN_SECRET_KEY not configured")
+    if x_admin_key != settings.ADMIN_SECRET_KEY:
+        raise HTTPException(401, "Invalid admin key")
+    return True
+
+
+async def require_hotel_context(x_hotel_id: str = Header(default="", alias="X-Hotel-Id")):
+    if not x_hotel_id:
+        raise HTTPException(400, "X-Hotel-Id header required")
+    hotel = await resolve_hotel_by_id(x_hotel_id)
+    if not hotel or not hotel.get("is_active", True):
+        raise HTTPException(404, "Hotel not found or inactive")
+    set_current_tenant(hotel)
+    return hotel
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# PLATFORM ADMIN (HOTELS)
+# ──────────────────────────────────────────────────────────────────────────────
+
+@admin_router.get("/hotels", dependencies=[Depends(require_admin_key)])
+async def list_hotels(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, le=200),
+):
+    db = get_admin_db()
+    skip = (page - 1) * limit
+    docs = await db.hotels.find({}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    total = await db.hotels.count_documents({})
+    for doc in docs:
+        doc.pop("_id", None)
+    return {"hotels": docs, "total": total, "page": page, "pages": (total + limit - 1) // limit}
+
+
+@admin_router.post("/hotels", dependencies=[Depends(require_admin_key)])
+async def create_hotel(req: HotelCreateRequest):
+    db = get_admin_db()
+    hotel = HotelConfig(
+        name=req.name,
+        db_name=req.db_name,
+        receptionist_name=req.receptionist_name or "Aisha",
+        phone=req.phone or "",
+        address=req.address or "",
+        checkin_time=req.checkin_time or "14:00",
+        checkout_time=req.checkout_time or "12:00",
+        currency=req.currency or "BDT",
+        timezone=req.timezone or "Asia/Dhaka",
+        twilio_voice_number=req.twilio_voice_number,
+        twilio_whatsapp_number=req.twilio_whatsapp_number,
+        twilio_account_sid=req.twilio_account_sid,
+        twilio_auth_token=req.twilio_auth_token,
+        is_active=True if req.is_active is None else req.is_active,
+    )
+    doc = hotel.model_dump(by_alias=True)
+    await db.hotels.insert_one(doc)
+    doc.pop("_id", None)
+    return {"success": True, "hotel": doc}
+
+
+@admin_router.get("/hotels/{hotel_id}", dependencies=[Depends(require_admin_key)])
+async def get_hotel(hotel_id: str):
+    db = get_admin_db()
+    doc = await db.hotels.find_one({"hotel_id": hotel_id})
+    if not doc:
+        raise HTTPException(404, "Hotel not found")
+    doc.pop("_id", None)
+    return doc
+
+
+@admin_router.patch("/hotels/{hotel_id}", dependencies=[Depends(require_admin_key)])
+async def update_hotel(hotel_id: str, req: HotelUpdateRequest):
+    db = get_admin_db()
+    update = {k: v for k, v in req.model_dump().items() if v is not None}
+    if not update:
+        raise HTTPException(400, "No fields to update")
+    update["updated_at"] = datetime.utcnow()
+    result = await db.hotels.update_one({"hotel_id": hotel_id}, {"$set": update})
+    if result.matched_count == 0:
+        raise HTTPException(404, "Hotel not found")
+    doc = await db.hotels.find_one({"hotel_id": hotel_id})
+    doc.pop("_id", None)
+    return {"success": True, "hotel": doc}
+
+
+@admin_router.delete("/hotels/{hotel_id}", dependencies=[Depends(require_admin_key)])
+async def delete_hotel(hotel_id: str):
+    db = get_admin_db()
+    result = await db.hotels.delete_one({"hotel_id": hotel_id})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Hotel not found")
+    return {"success": True, "hotel_id": hotel_id}
 
 # ─────────────────────────────────────────────
 # BOOKINGS API
@@ -37,6 +133,7 @@ async def list_bookings(
     guest_phone: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, le=100),
+    _hotel=Depends(require_hotel_context),
 ):
     db = get_db()
     query = {}
@@ -64,7 +161,7 @@ async def list_bookings(
 
 
 @bookings_router.get("/{booking_id}")
-async def get_booking(booking_id: str):
+async def get_booking(booking_id: str, _hotel=Depends(require_hotel_context)):
     db = get_db()
     doc = await db.bookings.find_one({"booking_id": booking_id.upper()})
     if not doc:
@@ -74,7 +171,7 @@ async def get_booking(booking_id: str):
 
 
 @bookings_router.post("/")
-async def create_booking_api(req: BookingCreateRequest):
+async def create_booking_api(req: BookingCreateRequest, _hotel=Depends(require_hotel_context)):
     executor = get_tool_executor()
     
     # Get room details to determine room_type
@@ -102,7 +199,7 @@ async def create_booking_api(req: BookingCreateRequest):
 
 
 @bookings_router.patch("/{booking_id}/status")
-async def update_booking_status(booking_id: str, status: str):
+async def update_booking_status(booking_id: str, status: str, _hotel=Depends(require_hotel_context)):
     valid = [s.value for s in BookingStatus]
     if status not in valid:
         raise HTTPException(400, f"Invalid status. Valid: {valid}")
@@ -118,7 +215,7 @@ async def update_booking_status(booking_id: str, status: str):
 
 
 @bookings_router.delete("/{booking_id}")
-async def cancel_booking_api(booking_id: str, reason: Optional[str] = Query(None)):
+async def cancel_booking_api(booking_id: str, reason: Optional[str] = Query(None), _hotel=Depends(require_hotel_context)):
     executor = get_tool_executor()
     result = await executor.cancel_booking(booking_id, reason)
     if result.get("error"):
@@ -134,6 +231,7 @@ async def cancel_booking_api(booking_id: str, reason: Optional[str] = Query(None
 async def list_rooms(
     room_type: Optional[str] = None,
     is_active: bool = True,
+    _hotel=Depends(require_hotel_context),
 ):
     db = get_db()
     query: dict = {"is_active": is_active}
@@ -147,7 +245,7 @@ async def list_rooms(
 
 
 @rooms_router.post("/")
-async def create_room(room: Room):
+async def create_room(room: Room, _hotel=Depends(require_hotel_context)):
     db = get_db()
     existing = await db.rooms.find_one({"room_number": room.room_number})
     if existing:
@@ -166,6 +264,7 @@ async def check_availability(
     room_type: Optional[str] = Query(None),
     adults: int = Query(1),
     children: int = Query(0),
+    _hotel=Depends(require_hotel_context),
 ):
     executor = get_tool_executor()
     result = await executor.check_room_availability(
@@ -183,7 +282,7 @@ async def check_availability(
 # ─────────────────────────────────────────────
 
 @admin_router.get("/dashboard")
-async def dashboard_stats():
+async def dashboard_stats(_hotel=Depends(require_hotel_context)):
     """Dashboard overview stats"""
     db = get_db()
     today = str(date.today())
@@ -236,7 +335,7 @@ async def dashboard_stats():
         },
         "revenue": {
             "monthly": round(monthly_revenue, 2),
-            "currency": settings.HOTEL_CURRENCY,
+            "currency": get_hotel_profile()["currency"],
         },
         "occupancy": {
             "total_rooms": total_rooms,
@@ -255,6 +354,7 @@ async def list_conversations(
     status: Optional[str] = None,
     page: int = 1,
     limit: int = 20,
+    _hotel=Depends(require_hotel_context),
 ):
     db = get_db()
     query = {}
@@ -278,7 +378,7 @@ async def list_conversations(
 
 
 @admin_router.post("/seed-rooms")
-async def seed_rooms():
+async def seed_rooms(_hotel=Depends(require_hotel_context)):
     """Seed sample rooms for testing"""
     db = get_db()
     count = await db.rooms.count_documents({})

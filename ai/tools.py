@@ -11,11 +11,11 @@ from typing import Optional, List, Dict, Any
 from bson import ObjectId
 
 from database.mongodb import get_db
+from database.tenancy import get_hotel_profile
 from database.models import (
     Booking, BookingStatus, Room, RoomType,
     GuestProfile, PricingBreakdown
 )
-from config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -170,9 +170,7 @@ class HotelToolExecutor:
         self.db = None
 
     def _get_db(self):
-        if not self.db:
-            self.db = get_db()
-        return self.db
+        return get_db()
 
     async def execute(self, tool_name: str, arguments: Dict) -> str:
         """Route tool call to correct handler, return JSON string result"""
@@ -253,7 +251,7 @@ class HotelToolExecutor:
                     "capacity": room["capacity"],
                     "price_per_night": price,
                     "total_price": round(total, 2),
-                    "currency": settings.HOTEL_CURRENCY,
+                    "currency": get_hotel_profile()["currency"],
                     "amenities": room.get("amenities", {}),
                     "description": room.get("description", ""),
                 })
@@ -305,7 +303,7 @@ class HotelToolExecutor:
             "discount": round(discount, 2),
             "tax_15pct": round(tax, 2),
             "final_total": round(final, 2),
-            "currency": settings.HOTEL_CURRENCY,
+            "currency": get_hotel_profile()["currency"],
             "amenities_included": ["WiFi", "AC", "TV"] + (["Breakfast"] if room["amenities"].get("breakfast_included") else []),
         }
 
@@ -348,7 +346,7 @@ class HotelToolExecutor:
             final_total=pricing_data["final_total"],
             per_night_avg=pricing_data["price_per_night"],
             nights=nights,
-            currency=settings.HOTEL_CURRENCY,
+            currency=get_hotel_profile()["currency"],
         )
 
         # Upsert guest profile
@@ -409,11 +407,11 @@ class HotelToolExecutor:
             "check_out_date": check_out_date,
             "nights": nights,
             "total_amount": pricing_data["final_total"],
-            "currency": settings.HOTEL_CURRENCY,
+            "currency": get_hotel_profile()["currency"],
             "status": "confirmed",
-            "check_in_time": settings.HOTEL_CHECKIN_TIME,
-            "check_out_time": settings.HOTEL_CHECKOUT_TIME,
-            "hotel_address": settings.HOTEL_ADDRESS,
+            "check_in_time": get_hotel_profile()["checkin_time"],
+            "check_out_time": get_hotel_profile()["checkout_time"],
+            "hotel_address": get_hotel_profile()["address"],
         }
 
     async def get_booking_details(
@@ -499,20 +497,20 @@ class HotelToolExecutor:
             "booking_id": booking_id.upper(),
             "status": "cancelled",
             "cancellation_fee": cancellation_fee,
-            "currency": settings.HOTEL_CURRENCY,
+            "currency": get_hotel_profile()["currency"],
             "note": note,
         }
 
     async def get_hotel_info(self, info_type: str) -> Dict:
         info_map = {
             "general": {
-                "name": settings.HOTEL_NAME,
-                "address": settings.HOTEL_ADDRESS,
-                "phone": settings.HOTEL_PHONE,
-                "check_in_time": settings.HOTEL_CHECKIN_TIME,
-                "check_out_time": settings.HOTEL_CHECKOUT_TIME,
+                "name": get_hotel_profile()["name"],
+                "address": get_hotel_profile()["address"],
+                "phone": get_hotel_profile()["phone"],
+                "check_in_time": get_hotel_profile()["checkin_time"],
+                "check_out_time": get_hotel_profile()["checkout_time"],
                 "stars": 5,
-                "description": f"{settings.HOTEL_NAME} offers world-class hospitality in the heart of Dhaka.",
+                "description": f"{get_hotel_profile()['name']} offers world-class hospitality.",
             },
             "amenities": {
                 "facilities": ["Swimming Pool", "Spa & Wellness Center", "Fitness Center", "Business Center",
@@ -521,8 +519,8 @@ class HotelToolExecutor:
                 "dining": ["The Grand Restaurant (International)", "Spice Garden (Bengali & Asian)", "Sky Lounge Bar"],
             },
             "policies": {
-                "check_in": settings.HOTEL_CHECKIN_TIME,
-                "check_out": settings.HOTEL_CHECKOUT_TIME,
+                "check_in": get_hotel_profile()["checkin_time"],
+                "check_out": get_hotel_profile()["checkout_time"],
                 "early_check_in": "Available from 10:00 AM (subject to availability, extra charge may apply)",
                 "late_check_out": "Until 2:00 PM (subject to availability)",
                 "cancellation": "Free cancellation 3+ days before arrival. 50% fee within 3 days. 100% same day.",
@@ -532,7 +530,7 @@ class HotelToolExecutor:
                 "id_required": "Valid national ID or passport required at check-in",
             },
             "location": {
-                "address": settings.HOTEL_ADDRESS,
+                "address": get_hotel_profile()["address"],
                 "landmarks": ["5 min from Bashundhara City", "10 min from Hazrat Shahjalal Airport", "Near Gulshan-2"],
                 "transport": "Airport transfer available (please book in advance)",
             },

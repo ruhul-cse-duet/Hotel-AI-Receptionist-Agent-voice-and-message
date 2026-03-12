@@ -1,0 +1,155 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hotel Onboarding</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/ui/onboarding.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div class="hero-text">
+        <p class="eyebrow">Receptionist Setup</p>
+        <h1>Launch your hotel in minutes</h1>
+        <p class="subhead">
+          Create your account, import details from your website, and publish the contact
+          numbers your guests will use to call or message.
+        </p>
+        <div class="hero-actions">
+          <button class="btn primary" id="jump-scrape">Start with website import</button>
+          <button class="btn ghost" id="jump-manual">Enter details manually</button>
+        </div>
+      </div>
+      <div class="hero-card">
+        <div class="stat">
+          <span class="stat-label">Setup steps</span>
+          <span class="stat-value">3</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Expected time</span>
+          <span class="stat-value">5-8 min</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Support</span>
+          <span class="stat-value">24/7</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="grid" id="onboarding">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>1. Account details</h2>
+          <p>Use a real email for confirmations and future management access.</p>
+        </div>
+        <div class="panel-body">
+          <label class="field">
+            <span>Email</span>
+            <input type="email" id="owner_email" placeholder="frontdesk@yourhotel.com" />
+          </label>
+          <label class="field">
+            <span>Password</span>
+            <input type="password" id="owner_password" placeholder="Create a strong password" />
+          </label>
+        </div>
+      </div>
+
+      <div class="panel" id="scrape-panel">
+        <div class="panel-header">
+          <h2>2. Import from website</h2>
+          <p>Paste your hotel website to prefill name, address, and phone.</p>
+        </div>
+        <div class="panel-body">
+          <label class="field">
+            <span>Website URL</span>
+            <input type="url" id="website_url" placeholder="https://yourhotel.com" />
+          </label>
+          <div class="panel-actions">
+            <button class="btn secondary" id="scrape-btn">Import details</button>
+            <span class="status" id="scrape-status"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel wide" id="manual-panel">
+        <div class="panel-header">
+          <h2>3. Hotel configuration</h2>
+          <p>Review and adjust details before you create the hotel profile.</p>
+        </div>
+        <div class="panel-body two-col">
+          <label class="field">
+            <span>Hotel name</span>
+            <input type="text" id="hotel_name" placeholder="Grand Azure Hotel" />
+          </label>
+          <label class="field">
+            <span>Receptionist name</span>
+            <input type="text" id="receptionist_name" placeholder="Aria" />
+          </label>
+          <label class="field">
+            <span>Phone number</span>
+            <input type="text" id="hotel_phone" placeholder="+8801XXXXXXXXX" />
+          </label>
+          <label class="field">
+            <span>Address</span>
+            <input type="text" id="hotel_address" placeholder="123 Main Street, Dhaka" />
+          </label>
+          <label class="field">
+            <span>Check-in time</span>
+            <input type="text" id="checkin_time" placeholder="14:00" />
+          </label>
+          <label class="field">
+            <span>Check-out time</span>
+            <input type="text" id="checkout_time" placeholder="12:00" />
+          </label>
+          <label class="field">
+            <span>Currency</span>
+            <input type="text" id="currency" placeholder="BDT" />
+          </label>
+          <label class="field">
+            <span>Timezone</span>
+            <input type="text" id="timezone" placeholder="Asia/Dhaka" />
+          </label>
+          <label class="field">
+            <span>Twilio voice number</span>
+            <input type="text" id="twilio_voice_number" placeholder="+1415XXXXXXX" />
+          </label>
+          <label class="field">
+            <span>Twilio WhatsApp number</span>
+            <input type="text" id="twilio_whatsapp_number" placeholder="whatsapp:+1415XXXXXXX" />
+          </label>
+          <label class="field">
+            <span>Twilio account SID</span>
+            <input type="text" id="twilio_account_sid" placeholder="ACxxxxxxxxxxxxxxxx" />
+          </label>
+          <label class="field">
+            <span>Twilio auth token</span>
+            <input type="password" id="twilio_auth_token" placeholder="Auth token" />
+          </label>
+        </div>
+        <div class="panel-actions">
+          <button class="btn primary" id="create-btn">Create hotel profile</button>
+          <span class="status" id="create-status"></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="footer-note">
+      <div>
+        <h3>After setup</h3>
+        <p>
+          Link the hotel profile to your Twilio numbers. Incoming calls and messages will
+          be routed to the correct hotel and the receptionist will respond using the saved
+          hotel profile.
+        </p>
+      </div>
+      <div class="badge">Production-ready onboarding</div>
+    </section>
+  </div>
+
+  <script src="/ui/onboarding.js"></script>
+</body>
+</html>

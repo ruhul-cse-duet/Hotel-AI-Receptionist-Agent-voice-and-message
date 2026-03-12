@@ -56,6 +56,37 @@ class MessageRole(str, Enum):
     TOOL = "tool"
 
 
+# -------------------------------
+# HOTEL (TENANT) MODELS
+# -------------------------------
+
+class HotelConfig(BaseModel):
+    id: Optional[str] = Field(default_factory=lambda: str(uuid.uuid4()), alias="_id")
+    hotel_id: str = Field(default_factory=lambda: f"hotel_{uuid.uuid4().hex[:8]}")
+    name: str
+    website_url: Optional[str] = None
+    owner_email: Optional[str] = None
+    owner_password_hash: Optional[str] = None
+    receptionist_name: str = "Aisha"
+    phone: str = ""
+    address: str = ""
+    checkin_time: str = "14:00"
+    checkout_time: str = "12:00"
+    currency: str = "BDT"
+    timezone: str = "Asia/Dhaka"
+    db_name: str
+    twilio_voice_number: Optional[str] = None
+    twilio_whatsapp_number: Optional[str] = None
+    twilio_account_sid: Optional[str] = None
+    twilio_auth_token: Optional[str] = None
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        populate_by_name = True
+
+
 # ─────────────────────────────────────────────
 # ROOM MODELS
 # ─────────────────────────────────────────────
@@ -281,3 +312,37 @@ class BookingResponse(BaseModel):
     booking: Optional[Dict] = None
     message: str = ""
     error: Optional[str] = None
+
+
+class HotelCreateRequest(BaseModel):
+    name: str
+    db_name: str
+    receptionist_name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    checkin_time: Optional[str] = None
+    checkout_time: Optional[str] = None
+    currency: Optional[str] = None
+    timezone: Optional[str] = None
+    twilio_voice_number: Optional[str] = None
+    twilio_whatsapp_number: Optional[str] = None
+    twilio_account_sid: Optional[str] = None
+    twilio_auth_token: Optional[str] = None
+    is_active: Optional[bool] = True
+
+
+class HotelUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    db_name: Optional[str] = None
+    receptionist_name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    checkin_time: Optional[str] = None
+    checkout_time: Optional[str] = None
+    currency: Optional[str] = None
+    timezone: Optional[str] = None
+    twilio_voice_number: Optional[str] = None
+    twilio_whatsapp_number: Optional[str] = None
+    twilio_account_sid: Optional[str] = None
+    twilio_auth_token: Optional[str] = None
+    is_active: Optional[bool] = None

@@ -24,7 +24,7 @@ class BaseLLMProvider(ABC):
         messages: List[Dict],
         tools: Optional[List[Dict]] = None,
         tool_choice: str = "auto",
-        temperature: float = 0.7,
+        temperature: float = 0.6,
         max_tokens: int = 1024,
     ) -> Dict:
         """Returns: { content: str, tool_calls: [...] | None, usage: {...} }"""
@@ -34,7 +34,7 @@ class BaseLLMProvider(ABC):
     async def stream_completion(
         self,
         messages: List[Dict],
-        temperature: float = 0.7,
+        temperature: float = 0.6,
         max_tokens: int = 512,
     ) -> AsyncIterator[str]:
         """Yields text chunks for streaming TTS"""
@@ -58,7 +58,7 @@ class OpenAIProvider(BaseLLMProvider):
         messages: List[Dict],
         tools: Optional[List[Dict]] = None,
         tool_choice: str = "auto",
-        temperature: float = 0.7,
+        temperature: float = 0.6,
         max_tokens: int = 1024,
     ) -> Dict:
         kwargs = dict(
@@ -97,7 +97,7 @@ class OpenAIProvider(BaseLLMProvider):
     async def stream_completion(
         self,
         messages: List[Dict],
-        temperature: float = 0.7,
+        temperature: float = 0.5,
         max_tokens: int = 512,
     ) -> AsyncIterator[str]:
         stream = await self.client.chat.completions.create(
@@ -152,7 +152,7 @@ class GeminiProvider(BaseLLMProvider):
         messages: List[Dict],
         tools: Optional[List[Dict]] = None,
         tool_choice: str = "auto",
-        temperature: float = 0.7,
+        temperature: float = 0.6,
         max_tokens: int = 1024,
     ) -> Dict:
         import asyncio
@@ -221,7 +221,7 @@ class GeminiProvider(BaseLLMProvider):
     async def stream_completion(
         self,
         messages: List[Dict],
-        temperature: float = 0.7,
+        temperature: float = 0.6,
         max_tokens: int = 512,
     ) -> AsyncIterator[str]:
         import asyncio
@@ -263,7 +263,7 @@ class LMStudioProvider(BaseLLMProvider):
         messages: List[Dict],
         tools: Optional[List[Dict]] = None,
         tool_choice: str = "auto",
-        temperature: float = 0.7,
+        temperature: float = 0.6,
         max_tokens: int = 1024,
     ) -> Dict:
         kwargs = dict(
@@ -304,7 +304,7 @@ class LMStudioProvider(BaseLLMProvider):
     async def stream_completion(
         self,
         messages: List[Dict],
-        temperature: float = 0.7,
+        temperature: float = 0.6,
         max_tokens: int = 512,
     ) -> AsyncIterator[str]:
         stream = await self.client.chat.completions.create(

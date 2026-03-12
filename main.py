@@ -8,6 +8,8 @@ import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -79,6 +81,13 @@ except Exception as e:
     rooms_router = None
     admin_router = None
 
+try:
+    from routers.onboarding import onboarding_router
+    logger.info("[OK] Onboarding router imported")
+except Exception as e:
+    logger.error(f"[FAIL] Failed to import onboarding router: {e}", exc_info=True)
+    onboarding_router = None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -117,6 +126,8 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+app.mount("/ui", StaticFiles(directory="ui"), name="ui")
 
 app.add_middleware(
     CORSMiddleware,
@@ -166,6 +177,12 @@ if admin_router:
 else:
     logger.warning("Admin router NOT registered")
 
+if onboarding_router:
+    app.include_router(onboarding_router)
+    logger.info("Onboarding router registered")
+else:
+    logger.warning("Onboarding router NOT registered")
+
 
 @app.get("/", tags=["Health"])
 async def root():
@@ -177,6 +194,11 @@ async def root():
         "llm": settings.LLM_PROVIDER,
         "docs": "/docs",
     }
+
+
+@app.get("/onboarding", tags=["Onboarding"])
+async def onboarding_page():
+    return FileResponse("ui/onboarding.html")
 
 
 @app.get("/health", tags=["Health"])

@@ -38,7 +38,7 @@ venv\Scripts\activate
 python -m utils.seed_rooms
 
 # Server start
-python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn main:app --host 0.0.0.0 --port 8002 --reload
 
 python -m uvicorn main:app --host 127.0.0.1 --port 8002 --reload
 ```
@@ -59,7 +59,7 @@ INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 python test_all.py
 ```
 
-**এটি autoম্যাটিক্যালি test করবে:**
+** automatically test :**
 - ✓ Unit tests (pytest)
 - ✓ API endpoints
 - ✓ Room availability
@@ -71,7 +71,7 @@ python test_all.py
 
 ## 🧪 Step 3: Individual Testing
 
-### A. Unit Tests চালান
+### A. Unit Tests 
 
 ```cmd
 # all tests
@@ -209,25 +209,25 @@ curl -X POST "http://localhost:8000/api/voice/incoming" ^
 ### Terminal 3: MongoDB Check
 
 ```cmd
-# MongoDB shell open করুন
+# MongoDB shell open 
 mongosh
 
 # Show databases
 show dbs
 
-# আমাদের database ব্যবহার করুন
+# Uses our database
 use hotel_ai_dev
 
-# Collections দেখুন
+# Collections see
 show collections
 
-# Bookings দেখুন
+# Bookings see
 db.bookings.find().pretty()
 
-# Conversations দেখুন
+# Conversations see
 db.conversations.find().pretty()
 
-# Rooms দেখুন
+# Rooms see
 db.rooms.find().pretty()
 ```
 

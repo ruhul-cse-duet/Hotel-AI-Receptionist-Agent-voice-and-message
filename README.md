@@ -219,6 +219,7 @@ ngrok http 8000
 1. Go to **Messaging → Try it out → Send a WhatsApp message**
 2. Follow sandbox join instructions
 3. Set webhook URL: `https://your-ngrok.io/api/whatsapp/incoming`
+4. Voice notes are supported; ensure `STT_PROVIDER` is configured and `ffmpeg` is installed.
 
 ### WhatsApp (Production)
 1. Apply for WhatsApp Business API via Twilio

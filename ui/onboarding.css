@@ -1,0 +1,264 @@
+﻿:root {
+  --bg: #f6f4f1;
+  --ink: #1b1a17;
+  --muted: #6b5f57;
+  --accent: #b65c2f;
+  --accent-dark: #8a421f;
+  --panel: #ffffff;
+  --line: #e6dfd7;
+  --shadow: 0 20px 60px rgba(35, 24, 18, 0.12);
+  --radius: 22px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top left, #efe8e0 0%, transparent 40%),
+    radial-gradient(circle at top right, #f7efe6 0%, transparent 50%),
+    var(--bg);
+  color: var(--ink);
+}
+
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 48px 28px 80px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 36px;
+  align-items: center;
+  margin-bottom: 48px;
+}
+
+.hero-text h1 {
+  font-family: "Fraunces", "Times New Roman", serif;
+  font-size: clamp(2.4rem, 4vw, 3.6rem);
+  margin: 0 0 16px;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.subhead {
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 1.05rem;
+  max-width: 520px;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.hero-card {
+  background: linear-gradient(140deg, #1b1a17 0%, #2f2520 100%);
+  color: #f4ede6;
+  border-radius: var(--radius);
+  padding: 32px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 18px;
+}
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(244, 237, 230, 0.2);
+  padding-bottom: 12px;
+}
+
+.stat:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.stat-value {
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.grid {
+  display: grid;
+  gap: 24px;
+}
+
+.panel {
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 26px 28px 28px;
+  border: 1px solid var(--line);
+  box-shadow: 0 12px 30px rgba(27, 26, 23, 0.06);
+}
+
+.panel.wide {
+  padding-bottom: 18px;
+}
+
+.panel-header h2 {
+  margin: 0 0 8px;
+  font-family: "Fraunces", "Times New Roman", serif;
+}
+
+.panel-header p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.panel-body {
+  margin-top: 22px;
+  display: grid;
+  gap: 16px;
+}
+
+.panel-body.two-col {
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.field span {
+  color: var(--muted);
+}
+
+input {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  font-size: 0.95rem;
+  font-family: inherit;
+  background: #fbfaf8;
+}
+
+input:focus {
+  outline: 2px solid rgba(182, 92, 47, 0.25);
+  border-color: var(--accent);
+}
+
+.panel-actions {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 12px 18px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 10px 20px rgba(182, 92, 47, 0.25);
+}
+
+.btn.secondary {
+  background: #efe4da;
+  color: var(--accent-dark);
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--accent-dark);
+  border: 1px solid var(--accent-dark);
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.status {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.footer-note {
+  margin-top: 40px;
+  padding: 26px 28px;
+  border-radius: var(--radius);
+  background: #1c1916;
+  color: #f5efe8;
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.footer-note h3 {
+  margin: 0 0 8px;
+  font-family: "Fraunces", "Times New Roman", serif;
+}
+
+.footer-note p {
+  margin: 0;
+  max-width: 620px;
+  color: rgba(245, 239, 232, 0.8);
+}
+
+.badge {
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(245, 239, 232, 0.15);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .footer-note {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 32px 18px 60px;
+  }
+
+  .panel {
+    padding: 22px;
+  }
+
+  .hero-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
