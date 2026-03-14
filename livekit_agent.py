@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from config import settings  # noqa: E402
+from ai.prompts import get_system_prompt  # noqa: E402
 
 # Register plugins on the main thread once.
 from livekit.plugins import openai as _openai_plugin  # noqa: E402, F401
@@ -23,30 +24,35 @@ def _prewarm(_proc):
     return None
 
 
-def _build_instructions() -> str:
-    return (
-        f"You are {settings.RECEPTIONIST_NAME}, the front desk receptionist for {settings.HOTEL_NAME}. "
-        "Speak like a real person and never mention being automated. "
-        "Address the guest as sir in every reply. "
-        f"Check-in time is {settings.HOTEL_CHECKIN_TIME} and check-out time is {settings.HOTEL_CHECKOUT_TIME}. "
-        f"Prices are in {settings.HOTEL_CURRENCY}. "
-        f"The hotel phone number is {settings.HOTEL_PHONE}. "
-        "Keep responses short and natural for voice calls."
+def _build_system_prompt() -> str:
+    return get_system_prompt(
+        channel="voice",
+        hotel_name=settings.HOTEL_NAME,
+        receptionist_name=settings.RECEPTIONIST_NAME,
+        hotel_address=settings.HOTEL_ADDRESS,
+        checkin_time=settings.HOTEL_CHECKIN_TIME,
+        checkout_time=settings.HOTEL_CHECKOUT_TIME,
+        currency=settings.HOTEL_CURRENCY,
+        hotel_phone=settings.HOTEL_PHONE,
     )
 
 
 async def entrypoint(ctx):
     from livekit.agents import AutoSubscribe
     from livekit.agents.pipeline import VoicePipelineAgent
+    from livekit.agents.llm import ChatContext
 
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
     participant = await ctx.wait_for_participant()
+
+    chat_ctx = ChatContext().append(text=_build_system_prompt(), role="system")
 
     agent = VoicePipelineAgent(
         vad=_silero_plugin.VAD.load(),
         stt=_openai_plugin.STT(model="whisper-1"),
         llm=_openai_plugin.LLM(model=settings.OPENAI_MODEL),
         tts=_openai_plugin.TTS(model=settings.OPENAI_TTS_MODEL, voice=settings.OPENAI_TTS_VOICE),
+        chat_ctx=chat_ctx,
     )
     agent.start(ctx.room, participant)
     await agent.say(
