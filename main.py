@@ -73,6 +73,13 @@ except Exception as e:
     whatsapp_router = None
 
 try:
+    from whatsapp.meta_handler import router as meta_whatsapp_router
+    logger.info("[OK] Meta WhatsApp router imported")
+except Exception as e:
+    logger.error(f"[FAIL] Failed to import Meta WhatsApp router: {e}", exc_info=True)
+    meta_whatsapp_router = None
+
+try:
     from routers.api import bookings_router, rooms_router, admin_router
     logger.info("[OK] API routers imported")
 except Exception as e:
@@ -158,6 +165,12 @@ if whatsapp_router:
     logger.info("WhatsApp router registered")
 else:
     logger.warning("WhatsApp router NOT registered")
+
+if meta_whatsapp_router:
+    app.include_router(meta_whatsapp_router)
+    logger.info("Meta WhatsApp router registered")
+else:
+    logger.warning("Meta WhatsApp router NOT registered")
 
 if bookings_router:
     app.include_router(bookings_router)

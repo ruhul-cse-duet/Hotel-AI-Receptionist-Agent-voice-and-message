@@ -37,6 +37,17 @@ class Settings(BaseSettings):
     WEBHOOK_BASE_URL: str = Field(default="https://uncatastrophically-unrivalled-coreen.ngrok-free.dev")  # public URL for Twilio webhooks
     WEBHOOK_TIMEOUT_SECONDS: int = Field(default=30)
 
+    # Meta WhatsApp Cloud API
+    META_WA_VERIFY_TOKEN: str = Field(default="")
+    META_WA_ACCESS_TOKEN: str = Field(default="")
+    META_WA_PHONE_NUMBER_ID: str = Field(default="")
+    META_WABA_ID: str = Field(default="")
+    META_GRAPH_API_VERSION: str = Field(default="v20.0")
+
+    # Conversation memory
+    CONVERSATION_MEMORY_DAYS: int = Field(default=15)
+    CONVERSATION_MEMORY_MAX_MESSAGES: int = Field(default=20)
+
     # ── MongoDB ────────────────────────────────────────────
     MONGODB_URI: str = Field(default="mongodb://localhost:27017")
     MONGODB_DB_NAME: str = "hotel_ai_receptionist"

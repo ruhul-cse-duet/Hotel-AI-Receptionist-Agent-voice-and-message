@@ -272,9 +272,9 @@ async def send_checkout_reminder(phone: str, booking_data: dict) -> bool:
 
 async def _get_or_create_whatsapp_session(db, phone: str, name: Optional[str]) -> dict:
     """Get active WhatsApp session or create new one"""
-    # Look for recent active conversation (last 24 hours)
+    # Look for recent active conversation (last N days)
     from datetime import timedelta
-    cutoff = datetime.utcnow() - timedelta(hours=24)
+    cutoff = datetime.utcnow() - timedelta(days=max(1, int(settings.CONVERSATION_MEMORY_DAYS)))
 
     existing = await db.conversations.find_one({
         "phone": phone,

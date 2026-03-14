@@ -74,6 +74,8 @@ def _default_hotel_doc() -> Dict[str, Any]:
         "twilio_whatsapp_number": settings.TWILIO_WHATSAPP_NUMBER,
         "twilio_account_sid": settings.TWILIO_ACCOUNT_SID,
         "twilio_auth_token": settings.TWILIO_AUTH_TOKEN,
+        "meta_whatsapp_phone_number_id": settings.META_WA_PHONE_NUMBER_ID,
+        "meta_waba_id": settings.META_WABA_ID,
         "db_name": settings.MONGODB_DB_NAME,
         "is_active": True,
     }
@@ -113,6 +115,27 @@ async def resolve_hotel_by_twilio_number(to_number: Optional[str], channel: str)
     return None
 
 
+async def resolve_hotel_by_meta_phone_number_id(phone_number_id: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Resolve hotel config by Meta WhatsApp phone_number_id."""
+    db = get_admin_db()
+    if db is None:
+        return None
+
+    if not phone_number_id:
+        return None
+
+    hotel = await db.hotels.find_one({"meta_whatsapp_phone_number_id": phone_number_id})
+    if hotel:
+        return hotel
+
+    # Fallback for single-tenant setups using .env settings without a hotels record.
+    if settings.META_WA_PHONE_NUMBER_ID and settings.META_WA_PHONE_NUMBER_ID == phone_number_id:
+        logger.warning("No hotel record found for Meta phone_number_id; using default settings fallback.")
+        return _default_hotel_doc()
+
+    return None
+
+
 async def resolve_hotel_by_id(hotel_id: str) -> Optional[Dict[str, Any]]:
     db = get_admin_db()
     if db is None:
@@ -137,6 +160,8 @@ def get_hotel_profile() -> Dict[str, Any]:
         "twilio_whatsapp_number": hotel.get("twilio_whatsapp_number", settings.TWILIO_WHATSAPP_NUMBER),
         "twilio_account_sid": hotel.get("twilio_account_sid", settings.TWILIO_ACCOUNT_SID),
         "twilio_auth_token": hotel.get("twilio_auth_token", settings.TWILIO_AUTH_TOKEN),
+        "meta_whatsapp_phone_number_id": hotel.get("meta_whatsapp_phone_number_id", settings.META_WA_PHONE_NUMBER_ID),
+        "meta_waba_id": hotel.get("meta_waba_id", settings.META_WABA_ID),
         "db_name": hotel.get("db_name", settings.MONGODB_DB_NAME),
         "is_active": hotel.get("is_active", True),
     }

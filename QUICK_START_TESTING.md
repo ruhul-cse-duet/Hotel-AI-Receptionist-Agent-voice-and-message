@@ -1,6 +1,6 @@
 # 🚀 Quick Start Testing Guide (বাংলা)
 
-আপনার Hotel AI Receptionist প্রজেক্ট testing এর জন্য step by step guide।
+Hotel AI Receptionist project testing  step by step guide।
 
 ---
 
@@ -15,12 +15,12 @@
 
 ## 🎯 Step 1: Start the Server
 
-### Terminal 1: MongoDB (যদি local ব্যবহার করছেন)
+### Terminal 1: MongoDB
 ```cmd
 # Windows
 mongod
 
-# অথবা যদি MongoDB Path এ আছে
+# Or MongoDB Path exits
 cd "C:\Program Files\MongoDB\Server\7.0\bin"
 mongod.exe
 ```
@@ -46,7 +46,7 @@ python -m uvicorn main:app --host 127.0.0.1 --port 8002 --reload
 **Output:**
 ```
 INFO:     Application startup complete
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Uvicorn running on http://0.0.0.0:8002 (Press CTRL+C to quit)
 ```
 
 ---
@@ -159,9 +159,9 @@ curl -X GET "http://localhost:8000/bookings/HTLXY1234"
 
 ### Method 1: Twilio Sandbox (Real)
 
-1. যান: https://console.twilio.com/us/account/messaging/try-it-out/whatsapp
-2. Sandbox এ join করুন (তারা একটা message পাঠাবে)
-3. আপনার project তে webhook configured করুন
+1. Goto: https://console.twilio.com/us/account/messaging/try-it-out/whatsapp
+2. Sandbox a join 
+3. Your project  webhook configured
 
 ### Method 2: Simulation (Quick)
 
@@ -184,9 +184,9 @@ curl -X POST "http://localhost:8000/api/whatsapp/incoming" ^
 
 ### Method 1: Twilio Sandbox (Real)
 
-1. Twilio Phone Number কিনুন
-2. Voice webhook configure করুন: `http://localhost:8000/api/voice/incoming`
-3. যেকোনো phone থেকে call করুন
+1. Twilio Phone Number buy
+2. Voice webhook configure : `http://localhost:8002/api/voice/incoming`
+3. any phone to call 
 
 ### Method 2: Simulation (Quick)
 
@@ -197,7 +197,7 @@ curl -X POST "http://localhost:8000/api/voice/incoming" ^
   -d "To=%%2B1555555555"
 ```
 
-**আপনার console এ দেখবেন:**
+**Your console will see:**
 ```
 📞 Incoming call: CA1234567890 from +880123456789
 ```
@@ -271,20 +271,20 @@ Terminal 3: python test_all.py
 
 ## 🎉 Success Indicators
 
-যখন সবকিছু ঠিক আছে, দেখবেন:
+When everything all right:
 
-✓ FastAPI server চলছে (http://localhost:8000)
+✓ FastAPI server running (http://localhost:8000)
 ✓ Pytest tests passing
-✓ curl commands কাজ করছে
-✓ MongoDB data save হচ্ছে
-✓ WhatsApp messages processing হচ্ছে
-✓ Voice webhooks respond করছে
+✓ curl commands doing work
+✓ MongoDB data save 
+✓ WhatsApp messages processing 
+✓ Voice webhooks respond doing
 
 ---
 
 ## 📚 Next Steps
 
-Testing ছাড়িয়ে গেলে:
+Testing:
 
 1. **Postman Collection** import করুন (TESTING_GUIDE.md তে আছে)
 2. **ngrok** setup করুন real Twilio webhooks এর জন্য
@@ -295,7 +295,7 @@ Testing ছাড়িয়ে গেলে:
 
 ## 🆘 Help
 
-কোনো সমস্যা হলে:
+Any issues occured:
 
 1. **Logs check করুন** - FastAPI terminal এ error message থাকবে
 2. **MongoDB check করুন** - `mongosh` দিয়ে data দেখুন
@@ -317,4 +317,4 @@ Testing ছাড়িয়ে গেলে:
 - [ ] WhatsApp simulation কাজ করছে
 - [ ] Voice call simulation কাজ করছে
 
-সবকিছু হলে, **আপনার প্রজেক্ট production ready! 🚀**
+ **Your project production ready! 🚀**

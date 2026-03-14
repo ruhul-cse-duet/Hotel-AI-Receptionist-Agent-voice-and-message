@@ -7,12 +7,13 @@ Maintains conversation context across voice and WhatsApp channels.
 import json
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Tuple, Any
 
 from ai.llm_provider import get_llm_provider
 from ai.tools import HOTEL_TOOLS, get_tool_executor
 from ai.prompts import get_system_prompt, VOICE_BREVITY_REMINDER
+from config import settings
 from database.mongodb import get_db
 from database.models import (
     Conversation, ConversationMessage, ConversationContext,
@@ -23,6 +24,73 @@ from database.tenancy import get_hotel_profile
 logger = logging.getLogger(__name__)
 
 MAX_TOOL_ITERATIONS = 5  # prevent infinite loops
+
+
+def _get_memory_cutoff() -> datetime:
+    days = max(1, int(getattr(settings, "CONVERSATION_MEMORY_DAYS", 15)))
+    return datetime.utcnow() - timedelta(days=days)
+
+
+def _get_memory_limit() -> int:
+    return max(5, int(getattr(settings, "CONVERSATION_MEMORY_MAX_MESSAGES", 20)))
+
+
+async def create_conversation_with_memory(
+    session_id: str,
+    phone: str,
+    channel: ConversationChannel,
+    call_sid: Optional[str] = None,
+    guest_name: Optional[str] = None,
+) -> Dict:
+    db = get_db()
+
+    # Pull guest profile name if available
+    if not guest_name:
+        guest = await db.guests.find_one({"phone": phone})
+        if guest and guest.get("name"):
+            guest_name = guest.get("name")
+
+    # Find latest conversation within memory window (any channel)
+    cutoff = _get_memory_cutoff()
+    prev_conv = await db.conversations.find(
+        {"phone": phone, "updated_at": {"$gte": cutoff}}
+    ).sort("updated_at", -1).limit(1).to_list(1)
+
+    prev_doc = prev_conv[0] if prev_conv else None
+    prev_messages = []
+    prev_context = {}
+
+    if prev_doc:
+        prev_context = prev_doc.get("context", {}) or {}
+        history = prev_doc.get("messages", []) or []
+        limit = _get_memory_limit()
+        prev_messages = history[-limit:]
+
+    context = ConversationContext(
+        guest_phone=phone,
+        guest_name=guest_name or prev_context.get("guest_name"),
+        check_in_date=prev_context.get("check_in_date"),
+        check_out_date=prev_context.get("check_out_date"),
+        room_type=prev_context.get("room_type"),
+        adults=prev_context.get("adults", 1),
+        children=prev_context.get("children", 0),
+        special_requests=prev_context.get("special_requests"),
+        intent=prev_context.get("intent"),
+        booking_id=None,
+        conversation_stage="greeting",
+    )
+
+    conv = Conversation(
+        session_id=session_id,
+        phone=phone,
+        channel=channel,
+        call_sid=call_sid,
+        messages=prev_messages,
+        context=context,
+    )
+    doc = conv.model_dump(by_alias=True)
+    await db.conversations.insert_one(doc)
+    return doc
 
 
 class HotelAgent:
@@ -73,6 +141,7 @@ class HotelAgent:
                 user_message=user_message,
                 assistant_message=manager_reply,
                 tool_calls=[],
+                phone=phone,
             )
             return manager_reply, []
 
@@ -87,6 +156,7 @@ class HotelAgent:
                 user_message=user_message,
                 assistant_message=prompt,
                 tool_calls=[],
+                phone=phone,
             )
             return prompt, []
 
@@ -162,6 +232,7 @@ class HotelAgent:
             user_message=user_message,
             assistant_message=assistant_content,
             tool_calls=all_tool_calls,
+            phone=phone,
         )
 
         # Update context from latest tool results
@@ -377,16 +448,11 @@ Return ONLY the shortened version, nothing else.
         return args
 
     async def _create_conversation(self, session_id: str, phone: str) -> Dict:
-        db = get_db()
-        conv = Conversation(
+        return await create_conversation_with_memory(
             session_id=session_id,
             phone=phone,
             channel=self.channel,
-            context=ConversationContext(guest_phone=phone),
         )
-        doc = conv.model_dump(by_alias=True)
-        await db.conversations.insert_one(doc)
-        return doc
 
     async def _save_turn(
         self,
@@ -394,6 +460,7 @@ Return ONLY the shortened version, nothing else.
         user_message: str,
         assistant_message: str,
         tool_calls: List[Dict],
+        phone: str,
     ):
         db = get_db()
         now = datetime.utcnow()
@@ -421,6 +488,16 @@ Return ONLY the shortened version, nothing else.
                 "$set": {"updated_at": now},
             }
         )
+
+        if phone:
+            await db.guests.update_one(
+                {"phone": phone},
+                {
+                    "$set": {"last_interaction": now, "updated_at": now},
+                    "$setOnInsert": {"created_at": now, "vip_tier": "standard"},
+                },
+                upsert=True,
+            )
 
     async def _update_context(self, session_id: str, tool_calls: List[Dict]):
         """Extract booking context from tool results and save to conversation"""

@@ -79,6 +79,8 @@ class HotelConfig(BaseModel):
     twilio_whatsapp_number: Optional[str] = None
     twilio_account_sid: Optional[str] = None
     twilio_auth_token: Optional[str] = None
+    meta_whatsapp_phone_number_id: Optional[str] = None
+    meta_waba_id: Optional[str] = None
     is_active: bool = True
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

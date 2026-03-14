@@ -17,7 +17,7 @@ from fastapi.responses import Response
 from twilio.rest import Client as TwilioClient
 from twilio.twiml.voice_response import VoiceResponse, Connect, Start, Stream
 
-from ai.agent import get_voice_agent
+from ai.agent import get_voice_agent, create_conversation_with_memory
 from ai.prompts import GREETING_VOICE
 from voice.stt_tts import get_stt, get_tts
 from database.mongodb import get_db
@@ -27,7 +27,7 @@ from database.tenancy import (
     set_current_tenant,
     get_hotel_profile,
 )
-from database.models import CallSession, Conversation, ConversationChannel, ConversationContext
+from database.models import CallSession, ConversationChannel
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -76,15 +76,13 @@ async def incoming_call(request: Request):
     )
     await db.call_sessions.insert_one(session.model_dump(by_alias=True))
 
-    # Create conversation record
-    conv = Conversation(
+    # Create conversation record with recent memory (if available)
+    await create_conversation_with_memory(
         session_id=session_id,
         phone=caller_phone,
         channel=ConversationChannel.VOICE,
         call_sid=call_sid,
-        context=ConversationContext(guest_phone=caller_phone),
     )
-    await db.conversations.insert_one(conv.model_dump(by_alias=True))
 
     # Store session_id keyed by call_sid for WebSocket lookup
     active_sessions[call_sid] = {
