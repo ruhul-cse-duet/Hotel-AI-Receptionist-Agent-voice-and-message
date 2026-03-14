@@ -126,11 +126,12 @@ class OpenAITTS(BaseTTS):
         from openai import AsyncOpenAI
         self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         self.voice = settings.OPENAI_TTS_VOICE
+        self.model = settings.OPENAI_TTS_MODEL
         logger.info(f"🔊 TTS: OpenAI ({self.voice})")
 
     async def synthesize(self, text: str) -> bytes:
         response = await self.client.audio.speech.create(
-            model="tts-1",
+            model=self.model,
             voice=self.voice,
             input=text,
             response_format="mp3",
@@ -139,7 +140,7 @@ class OpenAITTS(BaseTTS):
 
     async def synthesize_stream(self, text: str) -> AsyncIterator[bytes]:
         async with self.client.audio.speech.with_streaming_response.create(
-            model="tts-1",
+            model=self.model,
             voice=self.voice,
             input=text,
             response_format="mp3",

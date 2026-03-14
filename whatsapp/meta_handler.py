@@ -74,6 +74,34 @@ def _normalize_wa_phone(value: Optional[str]) -> str:
     return value
 
 
+def _get_call_base_url() -> str:
+    base = (settings.CALL_BASE_URL or "").strip()
+    if not base:
+        base = (settings.WEBHOOK_BASE_URL or "").strip()
+    return base.rstrip("/")
+
+
+def _is_call_request(text: str) -> bool:
+    if not text:
+        return False
+    norm = text.lower()
+    keywords = [
+        "call",
+        "voice",
+        "talk",
+        "speak",
+        "audio call",
+    ]
+    bangla = [
+        "কল",
+        "কথা",
+        "ভয়েস",
+        "কথা বল",
+        "কল দিতে",
+    ]
+    return any(k in norm for k in keywords) or any(k in norm for k in bangla)
+
+
 def _chunk_message(message: str, chunk_size: int = 1500) -> list[str]:
     if not message:
         return [""]
@@ -215,7 +243,7 @@ async def _synthesize_tts_mp3(text: str) -> Optional[bytes]:
                 from openai import AsyncOpenAI
                 client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
                 response = await client.audio.speech.create(
-                    model="tts-1",
+                    model=settings.OPENAI_TTS_MODEL,
                     voice=settings.OPENAI_TTS_VOICE,
                     input=text,
                     response_format="mp3",
@@ -394,6 +422,24 @@ async def _process_incoming_message(
         await _send_meta_whatsapp(
             phone,
             f"Hello! This is {profile['receptionist_name']} at {profile['name']}. How can I help you today, sir?",
+            phone_number_id,
+        )
+        return
+
+    if msg_type == "text" and _is_call_request(message_body):
+        base = _get_call_base_url()
+        if not base:
+            await _send_meta_whatsapp(
+                phone,
+                "Sorry sir, the call link is not configured yet. Please try again later.",
+                phone_number_id,
+            )
+            return
+        room_id = f"wa_{phone.replace('+','')}_{int(time.time())}"
+        call_link = f"{base}/call/{room_id}"
+        await _send_meta_whatsapp(
+            phone,
+            f"Sir, tap here to start a live call with our AI receptionist: {call_link}",
             phone_number_id,
         )
         return

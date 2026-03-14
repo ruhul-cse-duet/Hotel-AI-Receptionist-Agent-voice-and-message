@@ -48,6 +48,12 @@ class Settings(BaseSettings):
     CONVERSATION_MEMORY_DAYS: int = Field(default=15)
     CONVERSATION_MEMORY_MAX_MESSAGES: int = Field(default=20)
 
+    # LiveKit (WhatsApp -> Call link -> LiveKit room)
+    LIVEKIT_URL: str = Field(default="")
+    LIVEKIT_API_KEY: str = Field(default="")
+    LIVEKIT_API_SECRET: str = Field(default="")
+    CALL_BASE_URL: str = Field(default="")
+
     # ── MongoDB ────────────────────────────────────────────
     MONGODB_URI: str = Field(default="mongodb://localhost:27017")
     MONGODB_DB_NAME: str = "hotel_ai_receptionist"
@@ -59,6 +65,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = Field(default="")
     OPENAI_MODEL: str = "gpt-4o"
     OPENAI_TEMPERATURE: float = 0.7
+    OPENAI_TTS_MODEL: str = "gpt-4o-mini-tts"
 
     # Gemini
     GEMINI_API_KEY: str = Field(default="")

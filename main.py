@@ -95,6 +95,13 @@ except Exception as e:
     logger.error(f"[FAIL] Failed to import onboarding router: {e}", exc_info=True)
     onboarding_router = None
 
+try:
+    from routers.livekit import livekit_router
+    logger.info("[OK] LiveKit router imported")
+except Exception as e:
+    logger.error(f"[FAIL] Failed to import LiveKit router: {e}", exc_info=True)
+    livekit_router = None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -195,6 +202,12 @@ if onboarding_router:
     logger.info("Onboarding router registered")
 else:
     logger.warning("Onboarding router NOT registered")
+
+if livekit_router:
+    app.include_router(livekit_router)
+    logger.info("LiveKit router registered")
+else:
+    logger.warning("LiveKit router NOT registered")
 
 
 @app.get("/", tags=["Health"])

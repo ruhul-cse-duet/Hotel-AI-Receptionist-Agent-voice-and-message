@@ -1,4 +1,4 @@
-# 🚀 Quick Start Testing Guide (বাংলা)
+# 🚀 Quick Start Testing Guide
 
 Hotel AI Receptionist project testing  step by step guide।
 
@@ -41,6 +41,8 @@ python -m utils.seed_rooms
 python -m uvicorn main:app --host 0.0.0.0 --port 8002 --reload
 
 python -m uvicorn main:app --host 127.0.0.1 --port 8002 --reload
+
+python livekit_agent.py dev
 ```
 
 **Output:**
@@ -95,7 +97,7 @@ tests/test_agent.py::TestHotelAgentInitialization::test_whatsapp_agent_creation 
 ============ 10 passed in 0.45s ============
 ```
 
-### B. API Tests (curl দিয়ে)
+### B. API Tests (curl)
 
 #### 1️⃣ Check Available Rooms
 

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hotel AI Call</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        background: radial-gradient(circle at 20% 20%, #f7f1e1, #e9f2ff 45%, #f9f9f9 80%);
+        color: #1a1a1a;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+      .card {
+        max-width: 520px;
+        width: 100%;
+        background: #ffffff;
+        border-radius: 18px;
+        padding: 28px;
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.12);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 24px;
+      }
+      p {
+        margin: 0 0 12px;
+        color: #4b5563;
+      }
+      .status {
+        margin: 16px 0;
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: #f3f4f6;
+        font-weight: 600;
+      }
+      .controls {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      button {
+        border: none;
+        padding: 12px 16px;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .primary {
+        background: #111827;
+        color: #fff;
+      }
+      .secondary {
+        background: #e5e7eb;
+        color: #111827;
+      }
+      .footer {
+        margin-top: 18px;
+        font-size: 13px;
+        color: #6b7280;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Grand Palace Hotel AI Call</h1>
+      <p>Tap “Join Call” to start a live voice conversation with the AI receptionist.</p>
+      <div class="status" id="status">Idle</div>
+      <div class="controls">
+        <button class="primary" id="joinBtn">Join Call</button>
+        <button class="secondary" id="leaveBtn" disabled>Leave</button>
+      </div>
+      <div class="footer" id="roomInfo"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+    <script>
+      const LK = window.LivekitClient;
+      if (!LK) {
+        console.error("LiveKitClient not available. Check script load.");
+      }
+      const statusEl = document.getElementById("status");
+      const roomInfo = document.getElementById("roomInfo");
+      const joinBtn = document.getElementById("joinBtn");
+      const leaveBtn = document.getElementById("leaveBtn");
+
+      let room = null;
+      let currentRoomId = null;
+      let audioContainer = null;
+
+      function setStatus(text) {
+        statusEl.textContent = text;
+      }
+
+      function getRoomId() {
+        const parts = window.location.pathname.split("/").filter(Boolean);
+        return parts[1] || "default";
+      }
+
+      async function joinCall() {
+        try {
+          currentRoomId = getRoomId();
+          setStatus("Requesting token...");
+          const resp = await fetch(`/livekit/token?room=${encodeURIComponent(currentRoomId)}`);
+          if (!resp.ok) {
+            const errText = await resp.text();
+            throw new Error(errText || "Token request failed");
+          }
+          const data = await resp.json();
+          roomInfo.textContent = `Room: ${data.room}`;
+          setStatus("Connecting...");
+
+          room = new LK.Room();
+          audioContainer = document.createElement("div");
+          document.body.appendChild(audioContainer);
+
+          room.on(LK.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+            if (track.kind === LK.Track.Kind.Audio) {
+              const audioEl = track.attach();
+              audioEl.autoplay = true;
+              audioEl.controls = false;
+              audioEl.style.display = "none";
+              audioContainer.appendChild(audioEl);
+            }
+          });
+
+          room.on(LK.RoomEvent.TrackUnsubscribed, (track) => {
+            if (track.kind === LK.Track.Kind.Audio) {
+              track.detach().forEach((el) => el.remove());
+            }
+          });
+          room.on(LK.RoomEvent.Disconnected, () => {
+            setStatus("Disconnected");
+            joinBtn.disabled = false;
+            leaveBtn.disabled = true;
+          });
+
+          await room.connect(data.url, data.token, {
+            autoSubscribe: true,
+          });
+
+          if (room.localParticipant.setMicrophoneEnabled) {
+            await room.localParticipant.setMicrophoneEnabled(true);
+          } else if (room.localParticipant.enableCameraAndMicrophone) {
+            await room.localParticipant.enableCameraAndMicrophone();
+          } else {
+            throw new Error("Microphone API not available in this LiveKit SDK version.");
+          }
+          setStatus("Connected. Speak now.");
+          joinBtn.disabled = true;
+          leaveBtn.disabled = false;
+        } catch (err) {
+          console.error(err);
+          setStatus(`Error: ${err.message || err}`);
+        }
+      }
+
+      async function leaveCall() {
+        if (room) {
+          await room.disconnect();
+          room = null;
+        }
+        if (audioContainer) {
+          audioContainer.remove();
+          audioContainer = null;
+        }
+      }
+
+      joinBtn.addEventListener("click", joinCall);
+      leaveBtn.addEventListener("click", leaveCall);
+    </script>
+  </body>
+</html>
